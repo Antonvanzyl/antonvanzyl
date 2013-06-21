@@ -1,0 +1,135 @@
+apply plugin: 'jetty'
+
+project.ext.projectSrcDir   = "antonvanzyl"
+project.ext.warName = "antonvanzyl.war"
+project.ext.serverDeployDir="antonvanzyl" 		// which jboss server to deploy
+
+
+sourceSets {
+	
+}
+
+dependencies {
+
+	// depends on these libs (i.e. these libs are required for compilation and WILL be included in the jar)
+	compile springJars,
+	"org.json:json:20090211",
+	"commons-codec:commons-codec:${commonsCodecVersion}",
+	"commons-io:commons-io:${commonsIoVersion}",
+	"javax.validation:validation-api:1.0.0.GA",
+	"org.apache.commons:commons-lang3:${commonsLang3Version}",
+	"org.apache.cxf:cxf-api:${cxfVersion}",
+	"org.apache.cxf:cxf-common-utilities:${cxfVersion}",
+	"org.aspectj:aspectjweaver:${aspectjweaverVersion}",
+	"org.jasypt:jasypt:${jasyptVersion}",
+	"org.jasypt:jasypt-hibernate3:${jasyptVersion}",
+	"org.jasypt:jasypt-spring31:${jasyptVersion}",
+	"joda-time:joda-time:2.1",
+	//	"org.json:json:20090211",
+	"org.liquibase:liquibase-core:${liquibaseVersion}"
+
+	compile("org.hibernate:hibernate-validator:4.2.0.Final") { exclude module: "slf4j-api" }
+	compile("org.jboss.envers:jboss-envers:1.2.3-hibernate-3.3") { exclude group: "org.hibernate"
+		exclude group: "org.hibernate.javax.persistence" exclude module: "slf4j-api"  }
+
+	// these are all provided by JBoss 5.1 (i.e. these libs are required for compilation and will NOT be included in the jar)
+	// from JBOSS client
+	providedCompile("org.hibernate:hibernate-annotations:3.4.0.GA") {//same
+		exclude module: "slf4j-api"
+		exclude module: "hibernate-core"
+	}
+	providedCompile("org.hibernate:hibernate-core:3.3.2.GA") { exclude module: "slf4j-api" }//was 3.3.1.GA
+	providedCompile	"javax.persistence:persistence-api:1.0.2",//was 1.0.2->1.0.2.GA
+	"javax.mail:mail:1.4.2",//was 1.4->1.4.2ea
+	"log4j:log4j:1.2.14",//same
+	"org.slf4j:slf4j-api:1.5.8"//1.5.0->1.5.8-patch-01
+
+	// from JBOSS lib/endorsed
+	providedCompile	"javax.xml:jaxb-api:2.1",//same
+	"xalan:xalan:2.7.1",//same
+	"xerces:xercesImpl:2.9.1"//was 2.9.0
+
+	// from JBOSS lib
+	providedCompile	"com.sun.xml.bind:jaxb-impl:2.1.12",//was 2.1.9
+	"com.sun.xml.bind:jaxb-xjc:2.1.12",//was 2.1.9
+	//	"axis:axis-wsdl4j:1.2",//??
+	//	"commons-httpclient:commons-httpclient:3.0",
+	//	"javax.servlet.jsp:jsp-api:2.1",
+		"javax.servlet:servlet-api:2.5",
+	"org.jboss.logging:jboss-logging-spi:2.1.2.GA"//was 2.0.5.GA
+
+	// these are all needed at runtime (i.e. these libs are NOT required for compilation, but WILL be included in the jar)
+	runtime cxfJars,
+	"c3p0:c3p0:0.9.1.2",
+	"cglib:cglib:2.2.2",
+	"org.apache.geronimo.specs:geronimo-annotation_1.0_spec:1.1.1", // should be providedCompile, but needed to load cxf in JBoss
+	"org.slf4j:slf4j-log4j12:1.5.8"
+
+	testCompile allTestCompile
+
+	testRuntime allTestRuntime
+}
+
+
+def getWebInf(String env) {
+
+	def filesToCopy = copySpec {
+		with copySpec{
+			from "${projectDir}/Configuration/Common/configuration/WEB-INF"
+			exclude { fte -> file("${projectDir}/Configuration/${env}/configuration/WEB-INF/"+fte.file.name).exists()}
+		}
+		from "${projectDir}/Configuration/${env}/configuration/WEB-INF"
+	}
+	filesToCopy
+}
+
+
+def copyToJBoss(String env, String staging) {
+
+	// Create JBOSS server structure
+	File binDir = file("${staging}/bin")
+	File binLibDir = file("${staging}/bin/lib")
+	File configDir = file("${staging}/server/${serverDeployDir}/conf")
+	File capitecDir = file("${staging}/server/${serverDeployDir}/conf/capitec")
+	File deployDir = file("${staging}/server/${serverDeployDir}/deploy")
+
+	println "Creating dirs..."
+	[
+		binDir,
+		binLibDir,
+		configDir,
+		capitecDir,
+		deployDir
+	]*.mkdirs()
+
+	// Copy files into JBOSS server structure
+	def fromTo = [
+		"${projectDir}/Configuration/Common/bin/":binDir,
+		"${projectDir}/Configuration/Common/configuration/conf":configDir,
+		"${projectDir}/Configuration/Common/configuration/deploy":deployDir,
+		"${projectDir}/Configuration/${env}/bin/":binDir,
+		"${projectDir}/Configuration/${env}/configuration/conf":configDir,
+		"${projectDir}/Configuration/${env}/configuration/deploy":deployDir,
+	]
+	println "Copying files..."
+
+	fromTo.each { source, destination ->
+		println "  Copy: ${source} -to- ${destination}"
+		copy {
+			from source
+			into destination
+		}
+	}
+
+	// add liquibase for command-line installation
+	copy {
+		from configurations.compile
+		into binLibDir
+		include 'liquibase**'
+	}
+	
+}
+
+
+
+

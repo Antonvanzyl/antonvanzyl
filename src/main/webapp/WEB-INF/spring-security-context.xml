@@ -1,0 +1,32 @@
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:security="http://www.springframework.org/schema/security" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+http://www.springframework.org/schema/security
+http://www.springframework.org/schema/security/spring-security-3.1.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.0.xsd">
+
+	<!-- THIS MUST ONLY BE USED IN DEV -->
+	<!-- <security:debug /> -->
+
+	<!-- remember to uncomment springSecurityFilterChain in web.xml -->
+	<security:global-method-security secured-annotations="enabled" />
+
+	<security:http auto-config="true" create-session="always">
+		<security:intercept-url pattern="/**" access="IS_AUTHENTICATED_FULLY" /> 
+<!-- 		<security:intercept-url pattern="/services/**" access="IS_AUTHENTICATED_REMEMBERED" />  -->
+<!-- 		<security:intercept-url pattern="/web/**" access="ROLE_ADMIN" />  -->
+		<security:http-basic />
+	</security:http>
+
+
+	<bean id="authenticationService" class="capitec.security.ServiceAuthProvider" />
+
+	<security:authentication-manager>
+		<security:authentication-provider ref='authenticationService' />
+	</security:authentication-manager>
+
+
+
+</beans>
